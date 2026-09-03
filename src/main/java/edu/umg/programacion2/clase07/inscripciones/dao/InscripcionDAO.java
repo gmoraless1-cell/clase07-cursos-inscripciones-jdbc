@@ -9,6 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -52,8 +53,29 @@ public class InscripcionDAO {
      *    vez de dejar que el error se propague sin explicacion.
      */
     public int inscribir(int estudianteId, int cursoId) throws SQLException {
-        // TODO: completar (ver pistas arriba). Recuerda el catch especifico
-        // para inscripciones duplicadas antes del catch general.
+    	// TODO: completar (ver pistas arriba). Recuerda el catch especifico
+    	String sql = "INSERT INTO inscripciones (estudiante_id, curso_id) VALUES (?, ?)";
+    	
+    	try (connection conn = obtenerConexion());
+    			PreparedStatement stmt = conn.preparateStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+    				
+    				stm.setInt(1, estudianteId);
+    				stm.setInt(2, cursoId);
+    				stm.executeUpdate();
+    				
+    				try (ResultSet rs = stmt.getGeneratedKeys()) {
+    					if (rs.next()) {
+    						return rs.getInt(1);
+    					}
+    				}
+    			} catch (SQLIntegrityConstraintViolationException e) {
+    				// para inscripciones duplicadas antes del catch general.
+    				// Captura si se intenta duplicar la pareja o dupla estudiante/curso con la restriccion UNIQUE
+    				System.out.println("Aviso: El estudiante ya se encuentra inscrito en este curso. Intente con un curso diferente.");
+    				return -1;
+    			}
+    	
+        
         return -1;
     }
 
