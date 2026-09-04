@@ -94,8 +94,19 @@ public class InscripcionDAO {
      */
     public boolean registrarNota(int estudianteId, int cursoId, double nota) throws SQLException {
         // TODO: completar.
-        return false;
-    }
+    	String sql = "UPDATE inscripciones SET nota = ? WHERE estudiante_id = ? AND curso_id = ?";
+    	
+    	try (Connection conn =obtenerConexion();
+    		PreparedStatement stmt = conn.prepareStatement(sql)) {
+    		
+    		stmt.setDouble(1, nota);
+    		stmt.setInt(2, estudianteId);
+    		stmt.setInt(3, cursoId);
+    		
+    		int filasAfectadas = stmt.executeUpdate();
+    		return filasAfectadas > 0;
+    		}
+    	}
 
     /**
      * Lista los cursos en los que esta inscrito un estudiante, dado su
@@ -118,9 +129,29 @@ public class InscripcionDAO {
     public List<Curso> listarCursosDeEstudiante(String carnet) throws SQLException {
         List<Curso> resultado = new ArrayList<>();
         // TODO: completar (ver pista del JOIN de 3 tablas arriba).
-
-        return resultado;
-    }
+        String sql = "SELECT c.id, c.nombre, c.creditos " +
+                "FROM inscripciones i " +
+                "JOIN cursos c ON i.curso_id = c.id " +
+                "JOIN estudiantes e ON i.estudiante_id = e.id " +
+                "WHERE e.carnet = ?";
+   
+   try (Connection conn = obtenerConexion();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+       
+       stmt.setString(1, carnet);
+       
+       try (ResultSet rs = stmt.executeQuery()) {
+           while (rs.next()) {
+               Curso curso = new Curso();
+               curso.setId(rs.getInt("id"));
+               curso.setNombre(rs.getString("nombre"));
+               curso.setCreditos(rs.getInt("creditos"));
+               resultado.add(curso);
+           }
+       }
+   }
+   return resultado;
+}
 
     /**
      * Lista los estudiantes inscritos en un curso, dado su nombre.
@@ -134,6 +165,27 @@ public class InscripcionDAO {
     public List<Estudiante> listarEstudiantesDeCurso(String nombreCurso) throws SQLException {
         List<Estudiante> resultado = new ArrayList<>();
         // TODO: completar.
+        String sql = "SELECT e.id, e.nombre, e.carnet " +
+                "FROM inscripciones i " +
+                "JOIN estudiantes e ON i.estudiante_id = e.id " +
+                "JOIN cursos c ON i.curso_id = c.id " +
+                "WHERE c.nombre = ?";
+   
+   try (Connection conn = obtenerConexion();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+       
+       stmt.setString(1, nombreCurso);
+       
+       try (ResultSet rs = stmt.executeQuery()) {
+           while (rs.next()) {
+               Estudiante estudiante = new Estudiante();
+               estudiante.setId(rs.getInt("id"));
+               estudiante.setNombre(rs.getString("nombre"));
+               estudiante.setCarnet(rs.getString("carnet"));
+               resultado.add(estudiante);
+           }
+       }
+   }
 
         return resultado;
     }
@@ -162,8 +214,29 @@ public class InscripcionDAO {
      */
     public Optional<Double> promedioDeEstudiante(String carnet) throws SQLException {
         // TODO: completar (ver pistas arriba, especialmente el caso NULL).
-        return Optional.empty();
-    }
+    	String sql = "SELECT AVG(i.nota) AS promedio " +
+                "FROM inscripciones i " +
+                "JOIN estudiantes e ON i.estudiante_id = e.id " +
+                "WHERE e.carnet = ?";
+   
+   try (Connection conn = obtenerConexion();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+       
+       stmt.setString(1, carnet);
+       
+       try (ResultSet rs = stmt.executeQuery()) {
+           if (rs.next()) {
+               double promedio = rs.getDouble("promedio");
+               if (rs.wasNull()) { 
+                   // Si el estudiante no tiene notas cargadas o no existe, AVG devuelve NULL en la BD
+                   return Optional.empty();
+               }
+               return Optional.of(promedio);
+           }
+       }
+   }
+   return Optional.empty();
+}
 
     /**
      * Encuentra el nombre del curso con mas estudiantes inscritos.
@@ -189,6 +262,20 @@ public class InscripcionDAO {
      */
     public Optional<String> cursoConMasInscritos() throws SQLException {
         // TODO: completar (ver pistas arriba).
-        return Optional.empty();
-    }
+    	String sql = "SELECT c.nombre, COUNT(*) AS total " +
+                "FROM inscripciones i " +
+                "JOIN cursos c ON i.curso_id = c.id " +
+                "GROUP BY c.nombre " +
+                "ORDER BY total DESC " +
+                "LIMIT 1";
+   
+   try (Connection conn = obtenerConexion();
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        ResultSet rs = stmt.executeQuery()) {
+       
+       if (rs.next()) {
+           return Optional.of(rs.getString("nombre"));
+       }
+   }
+   return Optional.empty();
 }
