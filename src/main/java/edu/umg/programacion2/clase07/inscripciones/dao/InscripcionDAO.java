@@ -31,6 +31,11 @@ public class InscripcionDAO {
     private static final String URL = "jdbc:mysql://localhost:3306/prog2_db?useSSL=false&serverTimezone=UTC";
     private static final String USUARIO = "root";
     private static final String PASSWORD = "umg2026";
+    
+    private Connection obtenerConexion() throws SQLException {
+        return DriverManager.getConnection(URL, USUARIO, PASSWORD);
+    }
+
 
     /**
      * Inscribe a un estudiante en un curso. Retorna el id generado.
@@ -56,12 +61,14 @@ public class InscripcionDAO {
     	// TODO: completar (ver pistas arriba). Recuerda el catch especifico
     	String sql = "INSERT INTO inscripciones (estudiante_id, curso_id) VALUES (?, ?)";
     	
-    	try (connection conn = obtenerConexion());
-    			PreparedStatement stmt = conn.preparateStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+    	try (Connection conn = obtenerConexion();
+    		     PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+
     				
-    				stm.setInt(1, estudianteId);
-    				stm.setInt(2, cursoId);
-    				stm.executeUpdate();
+    				stmt.setInt(1, estudianteId);
+    				stmt.setInt(2, cursoId);
+    				stmt.executeUpdate();
     				
     				try (ResultSet rs = stmt.getGeneratedKeys()) {
     					if (rs.next()) {
@@ -142,16 +149,19 @@ public class InscripcionDAO {
        
        try (ResultSet rs = stmt.executeQuery()) {
            while (rs.next()) {
-               Curso curso = new Curso();
-               curso.setId(rs.getInt("id"));
-               curso.setNombre(rs.getString("nombre"));
-               curso.setCreditos(rs.getInt("creditos"));
+               // Cambiado para usar el constructor con parámetros en vez de setters
+               Curso curso = new Curso(
+                   rs.getInt("id"),
+                   rs.getString("nombre"),
+                   rs.getInt("creditos")
+               );
                resultado.add(curso);
            }
        }
    }
    return resultado;
 }
+
 
     /**
      * Lista los estudiantes inscritos en un curso, dado su nombre.
@@ -178,17 +188,20 @@ public class InscripcionDAO {
        
        try (ResultSet rs = stmt.executeQuery()) {
            while (rs.next()) {
-               Estudiante estudiante = new Estudiante();
-               estudiante.setId(rs.getInt("id"));
-               estudiante.setNombre(rs.getString("nombre"));
-               estudiante.setCarnet(rs.getString("carnet"));
+               // Cambiado para usar el constructor con parámetros en vez de setters
+               Estudiante estudiante = new Estudiante(
+                   rs.getInt("id"),
+                   rs.getString("nombre"),
+                   rs.getString("carnet")
+               );
                resultado.add(estudiante);
            }
        }
    }
+   return resultado;
+}
 
-        return resultado;
-    }
+
 
     /**
      * Calcula el promedio de notas de un estudiante (solo cursos que YA
@@ -218,17 +231,16 @@ public class InscripcionDAO {
                 "FROM inscripciones i " +
                 "JOIN estudiantes e ON i.estudiante_id = e.id " +
                 "WHERE e.carnet = ?";
-   
+
    try (Connection conn = obtenerConexion();
         PreparedStatement stmt = conn.prepareStatement(sql)) {
-       
+      
        stmt.setString(1, carnet);
-       
+      
        try (ResultSet rs = stmt.executeQuery()) {
            if (rs.next()) {
                double promedio = rs.getDouble("promedio");
-               if (rs.wasNull()) { 
-                   // Si el estudiante no tiene notas cargadas o no existe, AVG devuelve NULL en la BD
+               if (rs.wasNull()) {
                    return Optional.empty();
                }
                return Optional.of(promedio);
@@ -278,4 +290,6 @@ public class InscripcionDAO {
        }
    }
    return Optional.empty();
+    }
 }
+    
